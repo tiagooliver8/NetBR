@@ -1,0 +1,16 @@
+# Arquivos e pastas a ignorar
+
+# Ambiente virtual
+.venv/
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Arquivos temporários
+*.log
+.DS_Store
