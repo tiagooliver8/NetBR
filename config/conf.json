@@ -1,0 +1,16 @@
+{
+  "tests": [
+    {
+      "host": "mersendo194638.datasul.cloudtotvs.com.br",
+      "port": 491,
+      "required": true,
+      "description": "Servidor principal - conexão obrigatória"
+    },
+    {
+      "host": "mersendo194641.datasul.cloudtotvs.com.br",
+      "port": 495,
+      "required": false,
+      "description": "Servidor secundário - alerta se falhar"
+    }
+  ]
+}
