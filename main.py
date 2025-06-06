@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QV
 from nuvem.config_loader import load_config
 from nuvem.logger import log
 from nuvem.network import test_connection
+from nuvem.speedtest import medir_velocidade
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -12,11 +13,13 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 400, 300)
 
         self.label = QLabel("Clique para testar conexão")
+        self.speed_label = QLabel("")
         self.button = QPushButton("Executar Testes")
         self.button.clicked.connect(self.executar_testes)
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
+        layout.addWidget(self.speed_label)
         layout.addWidget(self.button)
 
         container = QWidget()
@@ -46,6 +49,14 @@ class MainWindow(QMainWindow):
             self.label.setText("Todos os testes obrigatórios passaram!")
         else:
             self.label.setText("\n".join(resultados))
+
+        download, upload = medir_velocidade()
+        if download is not None:
+            self.speed_label.setText(f"Download: {download} Mbps\nUpload: {upload} Mbps")
+            log(f"Velocidade - Download: {download} Mbps, Upload: {upload} Mbps")
+        else:
+            self.speed_label.setText("Erro ao medir velocidade")
+            log("Erro ao medir velocidade")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
