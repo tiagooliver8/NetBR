@@ -11,15 +11,41 @@
       "host": "mersendo194638.datasul.cloudtotvs.com.br",
       "port": 491,
       "required": true,
-      "description": "Servidor principal - conexão obrigatória"
+      "description": "Servidor Totvs Cloud - Produção"
     },
     {
       "host": "mersendo194641.datasul.cloudtotvs.com.br",
       "port": 495,
       "required": false,
-      "description": "Servidor secundário - alerta se falhar"
+      "description": "Servidor Totvs Cloud - Desenvolvimento"
+    }
+  ],
+  "speedtest": [
+    {
+      "type": "download",
+      "description": "Teste de Download",
+      "min_mbps": 10,
+      "required": true
+    },
+    {
+      "type": "upload",
+      "description": "Teste de Upload",
+      "min_mbps": 10,
+      "required": true
+    },
+    {
+      "type": "ping",
+      "description": "Teste de Ping",
+      "max_ms": 20,
+      "required": true
+    },
+    {
+      "type": "jitter",
+      "description": "Teste de Jitter",
+      "max_ms": 200,
+      "required": true
     }
   ],
   "speedtest_fallback_url": "https://openspeedtest.com",
-  "speedtest_timeout": 130
+  "speedtest_timeout": 50
 }
