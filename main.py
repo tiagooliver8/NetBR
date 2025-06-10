@@ -1,12 +1,13 @@
 # main.py
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget, QProgressBar
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QThread, QTimer
 from nuvem.config_loader import load_config
 from nuvem.logger import log
 from nuvem.network import test_connection
 from nuvem.speedtest import SpeedTest
-from nuvem.network_worker import NetworkWorker
+from nuvem.network_worker import SpeedTestWorker
+from nuvem.alternative_speedtest import AlternativeSpeedTestWindow  # Fallback visual
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -18,24 +19,11 @@ class MainWindow(QMainWindow):
         self.button = QPushButton("Executar Testes")
         self.button.clicked.connect(self.executar_testes)
 
-        # Adicione uma barra de progresso
+        # Barra de progresso
         self.progress_bar = QProgressBar()
         self.statusBar().addWidget(self.progress_bar)
 
-        # Configure o worker e thread
-        self.worker_thread = QThread()
-        self.worker = NetworkWorker()
-        self.worker.moveToThread(self.worker_thread)
-
-        # Conecte os sinais
-        self.worker_thread.started.connect(self.worker.run_tests)
-        self.worker.finished.connect(self.worker_thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-        self.worker.progress.connect(self.update_progress)
-        self.worker.result.connect(self.update_results)
-
-        # Instancie o SpeedTest para uso posterior
+        # Instância do SpeedTest
         self.speedtest = SpeedTest()
 
         layout = QVBoxLayout()
@@ -48,6 +36,8 @@ class MainWindow(QMainWindow):
 
     def executar_testes(self):
         self.label.setText("Executando testes de conexão...")
+        self.progress_bar.setRange(0, 0)  # Mostra barra indeterminada durante os testes
+        self.button.setEnabled(False)
         QApplication.processEvents()
 
         testes = load_config()
@@ -69,37 +59,115 @@ class MainWindow(QMainWindow):
                 resultados.append(f"ALERTA: {host}:{port} falhou")
 
         if not resultados:
-            self.label.setText("Todos os testes obrigatórios passaram!\nIniciando teste de velocidade...")
+            # Mensagem removida para não indicar sucesso antes do teste de velocidade
+            pass
         else:
             self.label.setText("\n".join(resultados) + "\nIniciando teste de velocidade...")
+
         QApplication.processEvents()
 
-        # Corrigido: usar SpeedTest ao invés de medir_velocidade
-        speed_result = self.speedtest.run_test()
-        download = speed_result.get("download")
-        upload = speed_result.get("upload")
+        # Inicie o teste de velocidade em uma thread separada
+        self.speedtest_thread = QThread()
+        self.speedtest_worker = SpeedTestWorker()
+        self.speedtest_worker.moveToThread(self.speedtest_thread)
+        self.speedtest_thread.started.connect(self.speedtest_worker.run)
+        self.speedtest_worker.finished.connect(self.on_speedtest_finished)
+        self.speedtest_worker.error.connect(self.on_speedtest_error)
+        self.speedtest_worker.finished.connect(self.speedtest_thread.quit)
+        self.speedtest_worker.finished.connect(self.speedtest_worker.deleteLater)
+        self.speedtest_thread.finished.connect(self.speedtest_thread.deleteLater)
+
+        # Timer para timeout de 10 segundos
+        self.speedtest_timeout_timer = QTimer()
+        self.speedtest_timeout_timer.setSingleShot(True)
+        self.speedtest_timeout_timer.timeout.connect(self.on_speedtest_timeout)
+
+        self.speedtest_thread.start()
+        self.speedtest_timeout_timer.start(40000)  # 30 segundos
+
+    def on_speedtest_finished(self, result):
+        self.speedtest_timeout_timer.stop()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(100)
+        self.button.setEnabled(True)
+        download = result.get("download")
+        upload = result.get("upload")
+        ping = result.get("ping")
+        jitter = result.get("jitter")
+
+        # Carrega requisitos de velocidade
+        import os, json
+        config_path = os.path.join(os.path.dirname(__file__), "config", "conf.json")
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        req = config.get("speed_requirements", {})
+        ok = True
+        mensagens = []
+        if req.get("required", False):
+            if download is not None and download < req.get("download_min_mbps", 0):
+                ok = False
+                mensagens.append(f"Download abaixo do mínimo: {download} Mbps < {req.get('download_min_mbps')} Mbps")
+            if upload is not None and upload < req.get("upload_min_mbps", 0):
+                ok = False
+                mensagens.append(f"Upload abaixo do mínimo: {upload} Mbps < {req.get('upload_min_mbps')} Mbps")
+            if ping is not None and ping > req.get("ping_max_ms", 9999):
+                ok = False
+                mensagens.append(f"Ping acima do máximo: {ping} ms > {req.get('ping_max_ms')} ms")
+            if jitter is not None and jitter > req.get("jitter_max_ms", 9999):
+                ok = False
+                mensagens.append(f"Jitter acima do máximo: {jitter} ms > {req.get('jitter_max_ms')} ms")
 
         if download is not None:
-            resultado_velocidade = f"Download: {download} Mbps\nUpload: {upload} Mbps"
+            resultado_velocidade = (
+                f"Download: {download} Mbps\n"
+                f"Upload: {upload} Mbps\n"
+                f"Ping: {ping} ms\n"
+                f"Jitter: {jitter} ms"
+            )
         else:
             resultado_velocidade = "Erro ao medir velocidade."
-
         log(resultado_velocidade)
+
+        if req.get("required", False):
+            if ok:
+                resultado_velocidade += "\nTodos os requisitos mínimos de velocidade foram atendidos!"
+            else:
+                resultado_velocidade += "\n" + "\n".join(mensagens)
 
         self.label.setText(self.label.text() + "\n" + resultado_velocidade)
 
+    def on_speedtest_error(self, error_msg):
+        self.speedtest_timeout_timer.stop()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.button.setEnabled(True)
+        log(f"Speedtest falhou: {error_msg}")
+        self.label.setText(self.label.text() + "\nSpeedtest falhou. Abrindo alternativa...")
+        self.abrir_speedtest_alternativo()
+
+    def on_speedtest_timeout(self):
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.button.setEnabled(True)
+        log("Speedtest demorou demais. Abrindo alternativa.")
+        self.label.setText(self.label.text() + "\nSpeedtest demorou demais. Abrindo alternativa...")
+        self.abrir_speedtest_alternativo()
+        # Opcional: você pode tentar cancelar a thread, mas QThread não cancela facilmente threads Python.
+
+    def abrir_speedtest_alternativo(self):
+        self.alt_window = AlternativeSpeedTestWindow()
+        self.alt_window.show()
+
     def start_tests(self):
-        # Desabilite o botão durante os testes
         self.button.setEnabled(False)
-        self.progress_bar.setRange(0, 0)  # Modo indeterminado
-        self.worker_thread.start()
+        self.progress_bar.setRange(0, 0)
+        # self.worker_thread.start()  # Removido, pois não há mais worker_thread
 
     def update_progress(self, message):
         self.statusBar().showMessage(message)
 
     def update_results(self, results):
-        # Atualize a interface com os resultados
-        # ...existing code...
+        # Atualize conforme necessidade
         self.button.setEnabled(True)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(100)

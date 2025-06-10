@@ -1,4 +1,11 @@
 {
+  "speed_requirements": {
+    "download_min_mbps": 10,
+    "upload_min_mbps": 10,
+    "ping_max_ms": 20,
+    "jitter_max_ms": 200,
+    "required": true
+  },
   "tests": [
     {
       "host": "mersendo194638.datasul.cloudtotvs.com.br",
