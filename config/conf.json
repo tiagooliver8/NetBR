@@ -19,5 +19,7 @@
       "required": false,
       "description": "Servidor secundário - alerta se falhar"
     }
-  ]
+  ],
+  "speedtest_fallback_url": "https://openspeedtest.com",
+  "speedtest_timeout": 130
 }
