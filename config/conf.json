@@ -46,6 +46,6 @@
       "required": true
     }
   ],
-  "speedtest_fallback_url": "https://openspeedtest.com",
-  "speedtest_timeout": 50
+  "speedtest_fallback_url": "https://speed.measurementlab.net",
+  "speedtest_timeout": 30
 }
