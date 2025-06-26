@@ -384,3 +384,10 @@ class MainWindow(QMainWindow):
             self.main_layout.removeItem(self.spacer_top_status)
         if hasattr(self, 'spacer_bottom_status'):
             self.main_layout.removeItem(self.spacer_bottom_status)
+
+if __name__ == "__main__":
+    print("[DEBUG] Iniciando NetBR...")
+    app = QApplication()
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
