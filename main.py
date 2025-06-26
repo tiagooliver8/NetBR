@@ -2,9 +2,11 @@
 import sys
 import os, json
 import time
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget, QProgressBar, QSpacerItem, QSizePolicy
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget, QProgressBar, QSpacerItem, QSizePolicy, QScrollArea
 from PySide6.QtCore import QThread, QTimer, Qt
-from PySide6.QtGui import QPixmap, QFont
+from PySide6.QtGui import QPixmap, QFont, QIcon
+from PySide6.QtCore import QSize
+from ui_main import Ui_MainWindow
 from nuvem.logger import log
 from nuvem.network_worker import SpeedTestWorker, NetworkWorker
 from nuvem.alternative_speedtest import AlternativeSpeedTestWindow
@@ -12,8 +14,10 @@ from nuvem.alternative_speedtest import AlternativeSpeedTestWindow
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
         self.setWindowTitle("NetBR")
-        self.setFixedSize(400, 700)  # Tamanho fixo próximo ao mockup
+        self.setFixedSize(400, 700)
         self.setStyleSheet("""
             QMainWindow {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #b3b3b3, stop:1 #888888);
@@ -21,33 +25,34 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # Topo: Caixa laranja com ícone nuvem e texto
-        top_box = QWidget()
-        top_box.setStyleSheet("""
-            background: #ed7d31;
-            border-radius: 16px;
-            /* border: 2px solid #a65c1a; */
-        """)
-        top_layout = QVBoxLayout()
-        top_layout.setContentsMargins(20, 10, 20, 10)
-        top_layout.setSpacing(8)
-        cloud_icon = QLabel()
-        try:
-            cloud_icon.setPixmap(QPixmap("resources/cloud.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        except Exception:
-            cloud_icon.setText("☁️")
-            cloud_icon.setFont(QFont("Arial", 32))
-        cloud_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        top_label = QLabel("Nuvem")
-        top_label.setFont(QFont("Arial", 28, QFont.Weight.Bold))
-        top_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        top_layout.addWidget(cloud_icon)
-        top_layout.addWidget(top_label)
-        top_box.setLayout(top_layout)
+        # Acesso direto aos widgets
+        self.button = self.ui.button
+        self.label = self.ui.label
+        self.text_box = self.ui.text_box
+        self.progress_bar = self.ui.progress_bar
+        self.scroll_area = self.ui.scroll_area
+        self.top_label = self.ui.top_label
+        self.cloud_icon = self.ui.cloud_icon
+        self.mersen_logo = self.ui.mersen_logo
+        self.main_layout = self.ui.main_layout
+        self.spacer_top = self.ui.spacer_top
+        self.spacer_bottom = self.ui.spacer_bottom
 
-        # Botão central
-        self.button = QPushButton("TESTAR!")
-        self.button.setMinimumHeight(80)
+        # Ajusta propriedades dos widgets
+        try:
+            self.cloud_icon.setPixmap(QPixmap("resources/cloud.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        except Exception:
+            self.cloud_icon.setText("☁️")
+            self.cloud_icon.setFont(QFont("Arial", 32))
+        self.cloud_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.top_label.setFont(QFont("Arial", 28, QFont.Weight.Bold))
+        self.top_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        try:
+            self.mersen_logo.setPixmap(QPixmap("resources/mersen.png").scaled(180, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        except Exception:
+            self.mersen_logo.setText("MERSEN")
+            self.mersen_logo.setFont(QFont("Arial", 24, QFont.Weight.Bold))
+        self.mersen_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.button.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         self.button.setStyleSheet("""
             QPushButton {
@@ -61,82 +66,133 @@ class MainWindow(QMainWindow):
             }
         """)
         self.button.clicked.connect(self.executar_testes)
-
-        # Rodapé: Caixa laranja com logo Mersen
-        bottom_box = QWidget()
-        bottom_box.setStyleSheet("""
-            background: #ed7d31;
-            border-radius: 16px;
-            /* border: 2px solid #a65c1a; */
-        """)
-        bottom_layout = QVBoxLayout()
-        bottom_layout.setContentsMargins(20, 10, 20, 10)
-        bottom_layout.setSpacing(8)
-        mersen_logo = QLabel()
-        try:
-            mersen_logo.setPixmap(QPixmap("resources/mersen.png").scaled(180, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        except Exception:
-            mersen_logo.setText("MERSEN")
-            mersen_logo.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        mersen_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        bottom_layout.addWidget(mersen_logo)
-        bottom_box.setLayout(bottom_layout)
-
-        # Retângulo de exibição dos textos (QWidget com fundo cinza claro)
-        self.text_box = QWidget()
-        self.text_box.setStyleSheet("background: #e0e0e0; border: 2px solid #444; border-radius: 8px;")
-        self.text_box_layout = QVBoxLayout()
-        self.text_box_layout.setContentsMargins(18, 18, 18, 18)
-        self.text_box_layout.setSpacing(0)
-        self.text_box.setLayout(self.text_box_layout)
-
-        # Adiciona barra de rolagem vertical para o label
-        from PySide6.QtWidgets import QScrollArea
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.label = QLabel("")
         self.label.setWordWrap(True)
         self.label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.label.setStyleSheet("color: #222; font-size: 18px;")
         self.label.hide()
-        self.scroll_area.setWidget(self.label)
-        self.text_box_layout.addWidget(self.scroll_area)
         self.text_box.hide()
-        # Define altura máxima para não encostar no topo/rodapé
         self.text_box.setMinimumHeight(420)
         self.text_box.setMaximumHeight(420)
-
-        # Barra de progresso
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        self.progress_bar.setFixedHeight(18)
-        self.progress_bar.setStyleSheet("QProgressBar { border-radius: 8px; }")
-
-        # Layout principal
-        self.main_layout = QVBoxLayout()
-        self.main_layout.setContentsMargins(20, 20, 20, 20)
-        self.main_layout.setSpacing(0)
-        self.main_layout.addWidget(top_box)
-        # Espaçadores para centralização dinâmica
-        self.spacer_top = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        self.spacer_bottom = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        self.main_layout.addItem(self.spacer_top)
-        self.main_layout.addWidget(self.button, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.main_layout.addItem(self.spacer_bottom)
-        self.main_layout.addWidget(self.text_box)
-        self.main_layout.addWidget(self.progress_bar)
-        self.main_layout.addWidget(bottom_box)
-
-        container = QWidget()
-        container.setLayout(self.main_layout)
-        self.setCentralWidget(container)
+        # Retângulo de status
+        
+        self.label.setStyleSheet("color: white; font-size: 14px; font-family: Arial, sans-serif;")
+        # Estiliza a barra de rolagem do QScrollArea
+        self.scroll_area.setStyleSheet("""
+            QScrollBar:vertical {
+                background: #17607a;
+                width: 16px;
+                margin: 2px 2px 2px 2px;
+                border-radius: 8px;
+            }
+            QScrollBar::handle:vertical {
+                background: #22262a;
+                min-height: 40px;
+                border-radius: 8px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
+        # Função para rolar para o final
+        def scroll_to_bottom():
+            self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
+        self._scroll_to_bottom = scroll_to_bottom  # Referência para uso posterior
 
         # Carrega o conf.json uma vez
         config_path = os.path.join(os.path.dirname(__file__), "config", "conf.json")
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
+
+        # Ajusta layout do topo para imagem e texto centralizados na tela
+        from PySide6.QtWidgets import QHBoxLayout, QSpacerItem, QSizePolicy
+        # Remove widgets antigos do layout vertical
+        try:
+            self.ui.top_layout.removeWidget(self.cloud_icon)
+        except Exception:
+            pass
+        try:
+            self.ui.top_layout.removeWidget(self.top_label)
+        except Exception:
+            pass
+        # Remove todos os itens do top_layout
+        while self.ui.top_layout.count():
+            item = self.ui.top_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        # Cria layout horizontal centralizado
+        self.top_hbox = QHBoxLayout()
+        self.top_hbox.setSpacing(12)
+        self.top_hbox.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        self.top_hbox.addWidget(self.cloud_icon)
+        self.top_hbox.addWidget(self.top_label)
+        self.top_hbox.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        self.cloud_icon.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+        self.top_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        self.ui.top_layout.addLayout(self.top_hbox)
+
+        # Botão de reiniciar (inicialmente oculto)
+        from PySide6.QtWidgets import QPushButton
+        from PySide6.QtGui import QIcon  # Adicionado para usar QIcon
+        self.restart_button = QPushButton()
+        self.restart_button.setFixedSize(40, 40)
+        self.restart_button.setToolTip("Reiniciar teste")
+        self.restart_button.setStyleSheet("""
+            QPushButton {
+                background: qradialgradient(cx:0.5, cy:0.5, radius:0.7, fx:0.5, fy:0.5, stop:0 #e0e0e0, stop:1 #888888);
+                border: 2px solid #22262a;
+                border-radius: 20px;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background: #b3b3b3;
+            }
+        """)
+        self.restart_button.setIcon(QIcon("resources/restart.png"))
+        self.restart_button.setIconSize(QSize(32, 32))
+        self.restart_button.setVisible(False)
+        self.restart_button.clicked.connect(self.reiniciar_testes)
+        self.main_layout.replaceWidget(self.progress_bar, self.restart_button)
+        self.main_layout.addWidget(self.progress_bar)  # Mantém a barra para manipulação, mas ela ficará oculta
+
+        # Layout para barra de progresso + botão de reinício lado a lado
+        from PySide6.QtWidgets import QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy
+        self.progress_bar.setFixedHeight(24)
+        self.progress_bar.setFixedWidth(0)  # width controlado pelo layout
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border-radius: 8px;
+                background: #e0e0e0;
+                height: 24px;
+                font-size: 1px; /* Oculta percentual */
+            }
+            QProgressBar::chunk {
+                background-color: #17607a;
+                border-radius: 8px;
+            }
+        """)
+        self.progress_restart_hbox = QHBoxLayout()
+        self.progress_restart_hbox.setSpacing(8)
+        self.progress_restart_hbox.addWidget(self.progress_bar, stretch=1)
+        self.progress_restart_hbox.addWidget(self.restart_button)
+        self.main_layout.removeWidget(self.progress_bar)
+        self.main_layout.removeWidget(self.restart_button)
+        self.main_layout.addLayout(self.progress_restart_hbox)
+        self.progress_bar.setVisible(True)
+        self.restart_button.setVisible(False)
+
+        # Remove barra de progresso do layout
+        self.progress_bar.setVisible(False)
+        self.main_layout.removeWidget(self.progress_bar)
+        # Remove restart_button do layout se já existir
+        self.main_layout.removeWidget(self.restart_button)
+        # Garante que o mersen_logo fique sempre no rodapé
+        self.main_layout.removeWidget(self.mersen_logo)
+        self.main_layout.addWidget(self.restart_button)
+        self.main_layout.addWidget(self.mersen_logo, alignment=Qt.AlignmentFlag.AlignBottom)
+        self.restart_button.setVisible(False)
 
     def executar_testes(self):
         # Remove o botão e ajusta os spacers para centralizar o text_box
@@ -177,16 +233,19 @@ class MainWindow(QMainWindow):
         else:
             self.label.setText(self.label.text() + "\n    " + message)
         QApplication.processEvents()
+        self._scroll_to_bottom()
 
     def update_results(self, results):
         # Adiciona os resultados ao texto existente, sem apagar
         for result in results:
             self.label.setText(self.label.text() + "\n    " + result)
         QApplication.processEvents()
+        self._scroll_to_bottom()
 
     def on_network_finished(self, results):
         self.label.setText(self.label.text() + "\nIniciando teste de velocidade...")
         QApplication.processEvents()
+        self._scroll_to_bottom()
 
         self.speedtest_thread = QThread()
         timeout_seconds = self.config.get("speedtest_timeout", 40)
@@ -210,6 +269,7 @@ class MainWindow(QMainWindow):
         # Exibe mensagem de progresso do speedtest na interface
         self.label.setText(self.label.text() + "\n" + message)
         QApplication.processEvents()
+        self._scroll_to_bottom()
 
     def on_speedtest_finished(self, result):
         # Se o fallback já foi aberto, ignore o resultado do speedtest
@@ -220,6 +280,8 @@ class MainWindow(QMainWindow):
         self.last_speedtest_update = time.time()  # Marca o momento da última atualização
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(100)
+        self.progress_bar.setVisible(True)
+        self.restart_button.setVisible(True)
         # Não exibe novamente o resumo dos resultados (Download, Upload, Ping, Jitter)
 
     def on_speedtest_error(self, error_msg):
@@ -231,6 +293,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.button.setEnabled(True)
+        self.restart_button.setVisible(True)
 
     def on_speedtest_timeout(self):
         # Só aciona o alternative_speedtest se o tempo desde a última atualização for maior que o timeout
@@ -243,6 +306,7 @@ class MainWindow(QMainWindow):
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
             self.button.setEnabled(True)
+            self.restart_button.setVisible(True)
         else:
             # Reagenda o timeout para o tempo restante
             restante = int(timeout_seconds - (now - self.last_speedtest_update))
@@ -278,6 +342,7 @@ class MainWindow(QMainWindow):
         self.alt_window = AlternativeSpeedTestWindow()
         self.alt_window.show()
         self.label.setText(self.label.text() + "\nTestes cancelados/interrompidos.")
+        self.restart_button.setVisible(True)
 
     def closeEvent(self, event):
         # Cancela todos os workers e threads ao fechar a janela principal
@@ -307,7 +372,21 @@ class MainWindow(QMainWindow):
                 pass
         event.accept()
 
+    def reiniciar_testes(self):
+        self.label.clear()
+        self.restart_button.setVisible(False)
+        self.button.setVisible(True)
+        self.button.setEnabled(True)
+        self.text_box.hide()
+        self.label.hide()
+        # Remove spacers de status se existirem
+        if hasattr(self, 'spacer_top_status'):
+            self.main_layout.removeItem(self.spacer_top_status)
+        if hasattr(self, 'spacer_bottom_status'):
+            self.main_layout.removeItem(self.spacer_bottom_status)
+
 if __name__ == "__main__":
+    print("[DEBUG] Iniciando NetBR...")
     app = QApplication()
     window = MainWindow()
     window.show()
