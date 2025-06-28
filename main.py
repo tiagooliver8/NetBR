@@ -135,7 +135,7 @@ class MainWindow(QMainWindow):
         self.ui.top_layout.addLayout(self.top_hbox)
 
         # Botão de reiniciar (inicialmente oculto)
-        from PySide6.QtWidgets import QPushButton
+        from PySide6.QtWidgets import QPushButton, QLabel
         from PySide6.QtGui import QIcon  # Adicionado para usar QIcon
         self.restart_button = QPushButton()
         self.restart_button.setFixedSize(40, 40)
@@ -158,8 +158,14 @@ class MainWindow(QMainWindow):
         self.main_layout.replaceWidget(self.progress_bar, self.restart_button)
         self.main_layout.addWidget(self.progress_bar)  # Mantém a barra para manipulação, mas ela ficará oculta
 
-        # Layout para barra de progresso + botão de reinício lado a lado
-        from PySide6.QtWidgets import QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy
+        # Label de status ao lado do botão reiniciar
+        self.status_label = QLabel("Teste concluído")
+        self.status_label.setStyleSheet("color: #17607a; font-size: 16px; font-family: Arial, sans-serif;")
+        self.status_label.setVisible(False)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+
+        # Layout para barra de progresso + botão de reinício + status centralizado
+        from PySide6.QtWidgets import QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy, QLabel
         self.progress_bar.setFixedHeight(24)
         self.progress_bar.setFixedWidth(0)  # width controlado pelo layout
         self.progress_bar.setStyleSheet("""
@@ -178,11 +184,16 @@ class MainWindow(QMainWindow):
         self.progress_restart_hbox.setSpacing(8)
         self.progress_restart_hbox.addWidget(self.progress_bar, stretch=1)
         self.progress_restart_hbox.addWidget(self.restart_button)
+        # Adiciona expansores para centralizar a label
+        self.progress_restart_hbox.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        self.progress_restart_hbox.addWidget(self.status_label)
+        self.progress_restart_hbox.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
         self.main_layout.removeWidget(self.progress_bar)
         self.main_layout.removeWidget(self.restart_button)
         self.main_layout.addLayout(self.progress_restart_hbox)
         self.progress_bar.setVisible(True)
         self.restart_button.setVisible(False)
+        self.status_label.setVisible(False)
 
         # Remove barra de progresso do layout
         self.progress_bar.setVisible(False)
@@ -283,6 +294,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(100)
         self.progress_bar.setVisible(True)
         self.restart_button.setVisible(True)
+        self.status_label.setVisible(True)
         # Não exibe novamente o resumo dos resultados (Download, Upload, Ping, Jitter)
 
     def on_speedtest_error(self, error_msg):
@@ -295,6 +307,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         self.button.setEnabled(True)
         self.restart_button.setVisible(True)
+        self.status_label.setVisible(True)
 
     def on_speedtest_timeout(self):
         # Só aciona o alternative_speedtest se o tempo desde a última atualização for maior que o timeout
@@ -407,6 +420,7 @@ class MainWindow(QMainWindow):
         # Limpa e restaura a interface
         self.label.clear()
         self.restart_button.setVisible(False)
+        self.status_label.setVisible(False)
         self.button.setVisible(True)
         self.button.setEnabled(True)
         self.text_box.hide()
