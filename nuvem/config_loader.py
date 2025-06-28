@@ -3,7 +3,9 @@ import os
 
 
 def load_config():
-    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "conf.json")
+    # Carrega o conf.json do diretório do usuário
+    user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
+    config_path = os.path.join(user_dir, "conf.json")
 
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Arquivo de configuração não encontrado: {config_path}")

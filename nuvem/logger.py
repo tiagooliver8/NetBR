@@ -1,13 +1,13 @@
 import os
 from datetime import datetime
 
-# Cria diretório de logs se não existir
-ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
-LOG_DIR = os.path.join(ROOT_DIR, "logs")
+# Diretório de logs em %userprofile%/.nuvem/logs
+USER_DIR = os.path.expandvars(r"%userprofile%/.nuvem")
+LOG_DIR = os.path.join(USER_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Define nome do arquivo com data e hora
-log_filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".log"
+# Nome do arquivo: Nuvemtest_[data e hora do teste].log
+log_filename = "Nuvemtest_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".log"
 log_path = os.path.join(LOG_DIR, log_filename)
 
 
