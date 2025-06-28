@@ -16,7 +16,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowTitle("NetBR")
+        self.setWindowTitle("Nuvem - Mersen do Brasil")
         self.setFixedSize(400, 700)
         self.setStyleSheet("""
             QMainWindow {
@@ -101,8 +101,9 @@ class MainWindow(QMainWindow):
             self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
         self._scroll_to_bottom = scroll_to_bottom  # Referência para uso posterior
 
-        # Carrega o conf.json uma vez
-        config_path = os.path.join(os.path.dirname(__file__), "config", "conf.json")
+        # Carrega o conf.json do diretório do usuário
+        user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
+        config_path = os.path.join(user_dir, "conf.json")
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
 
@@ -373,19 +374,93 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def reiniciar_testes(self):
+        # Cancela todos os workers e threads existentes
+        if hasattr(self, "speedtest_worker"):
+            try:
+                self.speedtest_worker.cancel()
+                delattr(self, "speedtest_worker")
+            except Exception:
+                pass
+        if hasattr(self, "speedtest_thread") and self.speedtest_thread is not None:
+            try:
+                if self.speedtest_thread.isRunning():
+                    self.speedtest_thread.quit()
+                    self.speedtest_thread.wait(2000)
+                delattr(self, "speedtest_thread")
+            except RuntimeError:
+                pass
+        if hasattr(self, "network_worker"):
+            try:
+                self.network_worker.cancel()
+                delattr(self, "network_worker")
+            except Exception:
+                pass
+        if hasattr(self, "network_thread") and self.network_thread is not None:
+            try:
+                if self.network_thread.isRunning():
+                    self.network_thread.quit()
+                    self.network_thread.wait(2000)
+                delattr(self, "network_thread")
+            except RuntimeError:
+                pass
+
+        # Limpa e restaura a interface
         self.label.clear()
         self.restart_button.setVisible(False)
         self.button.setVisible(True)
         self.button.setEnabled(True)
         self.text_box.hide()
         self.label.hide()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setValue(0)
+
         # Remove spacers de status se existirem
         if hasattr(self, 'spacer_top_status'):
             self.main_layout.removeItem(self.spacer_top_status)
+            delattr(self, 'spacer_top_status')
         if hasattr(self, 'spacer_bottom_status'):
             self.main_layout.removeItem(self.spacer_bottom_status)
+            delattr(self, 'spacer_bottom_status')
+
+        # Restaura os spacers originais
+        self.main_layout.insertItem(1, self.spacer_top)
+        self.main_layout.insertItem(3, self.spacer_bottom)
+
+        # Garante que o botão está no layout correto
+        self.main_layout.insertWidget(2, self.button)
 
 if __name__ == "__main__":
+    # Verifica/cria o diretório %userprofile%/.nuvem
+    user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
+    try:
+        if not os.path.exists(user_dir):
+            os.makedirs(user_dir, exist_ok=True)
+    except Exception as e:
+        print(f"[ERRO] Não foi possível criar o diretório {user_dir}: {e}")
+        sys.exit(1)
+
+    # Cria o diretório logs dentro de .nuvem
+    logs_dir = os.path.join(user_dir, "logs")
+    try:
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir, exist_ok=True)
+    except Exception as e:
+        print(f"[ERRO] Não foi possível criar o diretório de logs {logs_dir}: {e}")
+        sys.exit(1)
+
+    # Cria conf.json em .nuvem se não existir
+    conf_src = os.path.join(os.path.dirname(__file__), "config", "conf.json")
+    conf_dst = os.path.join(user_dir, "conf.json")
+    if not os.path.exists(conf_dst):
+        try:
+            with open(conf_src, "r", encoding="utf-8") as fsrc:
+                conf_content = fsrc.read()
+            with open(conf_dst, "w", encoding="utf-8") as fdst:
+                fdst.write(conf_content)
+        except Exception as e:
+            print(f"[ERRO] Não foi possível criar o arquivo de configuração {conf_dst}: {e}")
+            sys.exit(1)
+
     print("[DEBUG] Iniciando NetBR...")
     app = QApplication()
     window = MainWindow()

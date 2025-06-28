@@ -24,7 +24,11 @@ class SpeedTest:
                 error_msg = str(e)
                 if "403" in error_msg or "Forbidden" in error_msg:
                     if self.progress_callback:
-                        self.progress_callback("Speedtest bloqueado pelo servidor (HTTP 403). Use o teste alternativo.")
+                        self.progress_callback("Speedtest bloqueado pelo servidor (HTTP 403). Abrindo alternativa...")
+                    # Sinaliza para a interface abrir o fallback
+                    from nuvem.alternative_speedtest import AlternativeSpeedTestWindow
+                    alt_window = AlternativeSpeedTestWindow()
+                    alt_window.show()
                     return {"download": 0.0, "upload": 0.0, "ping": 0.0, "jitter": 0.0, "status": "blocked", "error": "Speedtest bloqueado pelo servidor (HTTP 403)."},
                 else:
                     raise
