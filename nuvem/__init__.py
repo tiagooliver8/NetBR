@@ -4,5 +4,5 @@ from .network import ping_host
 from .config_loader import load_config
 # from .logger import setup_logger
 from .network import test_connection
-from .speedtest import SpeedTest
+from nuvem.speedtest_worker import SpeedTest
 from .logger import log

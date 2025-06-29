@@ -1,5 +1,12 @@
-# main.py
 import sys
+if sys.stdout is None:
+    import io
+    sys.stdout = io.StringIO()
+if sys.stderr is None:
+    import io
+    sys.stderr = io.StringIO()
+
+# main.py
 import os, json
 import time
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget, QProgressBar, QSpacerItem, QSizePolicy, QScrollArea
@@ -10,6 +17,10 @@ from ui_main import Ui_MainWindow
 from nuvem.logger import log
 from nuvem.network_worker import SpeedTestWorker, NetworkWorker
 from nuvem.alternative_speedtest import AlternativeSpeedTestWindow
+
+def resource_path(relative_path):
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+    return os.path.join(base_path, relative_path)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -40,7 +51,7 @@ class MainWindow(QMainWindow):
 
         # Ajusta propriedades dos widgets
         try:
-            self.cloud_icon.setPixmap(QPixmap("resources/cloud.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            self.cloud_icon.setPixmap(QPixmap(resource_path("resources/cloud.png")).scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         except Exception:
             self.cloud_icon.setText("☁️")
             self.cloud_icon.setFont(QFont("Arial", 32))
@@ -48,7 +59,7 @@ class MainWindow(QMainWindow):
         self.top_label.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.top_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         try:
-            self.mersen_logo.setPixmap(QPixmap("resources/mersen.png").scaled(180, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            self.mersen_logo.setPixmap(QPixmap(resource_path("resources/mersen.png")).scaled(180, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         except Exception:
             self.mersen_logo.setText("MERSEN")
             self.mersen_logo.setFont(QFont("Arial", 24, QFont.Weight.Bold))
@@ -104,6 +115,9 @@ class MainWindow(QMainWindow):
         # Carrega o conf.json do diretório do usuário
         user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
         config_path = os.path.join(user_dir, "conf.json")
+        if not os.path.exists(config_path):
+            # fallback: tenta carregar do bundle
+            config_path = resource_path("config/conf.json")
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
 
@@ -151,7 +165,7 @@ class MainWindow(QMainWindow):
                 background: #b3b3b3;
             }
         """)
-        self.restart_button.setIcon(QIcon("resources/restart.png"))
+        self.restart_button.setIcon(QIcon(resource_path("resources/restart.png")))
         self.restart_button.setIconSize(QSize(32, 32))
         self.restart_button.setVisible(False)
         self.restart_button.clicked.connect(self.reiniciar_testes)
