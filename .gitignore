@@ -16,5 +16,7 @@ __pycache__/
 .DS_Store
 
 # Arquivos compilados
-dist/
-build/
+/dist/
+/build/
+*.exe
+*.pkg
