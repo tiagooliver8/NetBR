@@ -299,7 +299,7 @@ class MainWindow(QMainWindow):
 
     def on_speedtest_finished(self, result):
         # Se o fallback já foi aberto, ignore o resultado do speedtest
-        if hasattr(self, "alt_window") and self.alt_window.isVisible():
+        if hasattr(self, "fallback_ativo") and self.fallback_ativo:
             log("[INFO] Resultado do speedtest ignorado pois o fallback já foi aberto.")
             return
         self.speedtest_timeout_timer.stop()
@@ -341,19 +341,15 @@ class MainWindow(QMainWindow):
             self.speedtest_timeout_timer.start(restante * 1000)
 
     def abrir_speedtest_alternativo(self):
+        # Marca que o fallback foi acionado
+        self.fallback_ativo = True
         # Cancela o teste de velocidade se estiver rodando
         if hasattr(self, "speedtest_worker"):
             try:
                 self.speedtest_worker.cancel()
             except Exception:
                 pass
-        if hasattr(self, "speedtest_thread") and self.speedtest_thread is not None:
-            try:
-                if self.speedtest_thread.isRunning():
-                    self.speedtest_thread.quit()
-                    self.speedtest_thread.wait(2000)
-            except RuntimeError:
-                pass
+        # Não espera a thread do speedtest terminar, apenas ignora o resultado
         # Cancela o network worker se estiver rodando
         if hasattr(self, "network_worker"):
             try:
@@ -367,6 +363,7 @@ class MainWindow(QMainWindow):
                     self.network_thread.wait(2000)
             except RuntimeError:
                 pass
+        # Abre a janela alternativa
         self.alt_window = AlternativeSpeedTestWindow()
         self.alt_window.show()
         self.label.setText(self.label.text() + "\nTestes cancelados/interrompidos.")
@@ -401,37 +398,19 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def reiniciar_testes(self):
-        # Cancela todos os workers e threads existentes
-        if hasattr(self, "speedtest_worker"):
+        # Fecha a janela alternativa se estiver aberta (mas não mexe em threads do speedtest)
+        if hasattr(self, "alt_window"):
             try:
-                self.speedtest_worker.cancel()
-                delattr(self, "speedtest_worker")
+                if self.alt_window.isVisible():
+                    self.alt_window.close()
+                delattr(self, "alt_window")
             except Exception:
                 pass
-        if hasattr(self, "speedtest_thread") and self.speedtest_thread is not None:
-            try:
-                if self.speedtest_thread.isRunning():
-                    self.speedtest_thread.quit()
-                    self.speedtest_thread.wait(2000)
-                delattr(self, "speedtest_thread")
-            except RuntimeError:
-                pass
-        if hasattr(self, "network_worker"):
-            try:
-                self.network_worker.cancel()
-                delattr(self, "network_worker")
-            except Exception:
-                pass
-        if hasattr(self, "network_thread") and self.network_thread is not None:
-            try:
-                if self.network_thread.isRunning():
-                    self.network_thread.quit()
-                    self.network_thread.wait(2000)
-                delattr(self, "network_thread")
-            except RuntimeError:
-                pass
-
-        # Limpa e restaura a interface
+        # Limpa flag de fallback
+        if hasattr(self, "fallback_ativo"):
+            delattr(self, "fallback_ativo")
+        # NÃO cancela nem espera threads de speedtest/network aqui!
+        # Apenas limpa e restaura a interface
         self.label.clear()
         self.restart_button.setVisible(False)
         self.status_label.setVisible(False)
@@ -441,7 +420,6 @@ class MainWindow(QMainWindow):
         self.label.hide()
         self.progress_bar.setVisible(False)
         self.progress_bar.setValue(0)
-
         # Remove spacers de status se existirem
         if hasattr(self, 'spacer_top_status'):
             self.main_layout.removeItem(self.spacer_top_status)
@@ -449,11 +427,9 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'spacer_bottom_status'):
             self.main_layout.removeItem(self.spacer_bottom_status)
             delattr(self, 'spacer_bottom_status')
-
         # Restaura os spacers originais
         self.main_layout.insertItem(1, self.spacer_top)
         self.main_layout.insertItem(3, self.spacer_bottom)
-
         # Garante que o botão está no layout correto
         self.main_layout.insertWidget(2, self.button)
 
