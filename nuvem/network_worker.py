@@ -1,5 +1,5 @@
 from PySide6.QtCore import QObject, Signal
-from nuvem.speedtest import SpeedTest
+from nuvem.speedtest_worker import SpeedTest
 from nuvem.config_loader import load_config, get_speedtest_requirements
 from nuvem.logger import log
 from nuvem.network import test_connection

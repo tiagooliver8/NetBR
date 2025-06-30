@@ -1,5 +1,12 @@
-# main.py
 import sys
+if sys.stdout is None:
+    import io
+    sys.stdout = io.StringIO()
+if sys.stderr is None:
+    import io
+    sys.stderr = io.StringIO()
+
+# main.py
 import os, json
 import time
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget, QProgressBar, QSpacerItem, QSizePolicy, QScrollArea
@@ -10,6 +17,10 @@ from ui_main import Ui_MainWindow
 from nuvem.logger import log
 from nuvem.network_worker import SpeedTestWorker, NetworkWorker
 from nuvem.alternative_speedtest import AlternativeSpeedTestWindow
+
+def resource_path(relative_path):
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+    return os.path.join(base_path, relative_path)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -40,7 +51,7 @@ class MainWindow(QMainWindow):
 
         # Ajusta propriedades dos widgets
         try:
-            self.cloud_icon.setPixmap(QPixmap("resources/cloud.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            self.cloud_icon.setPixmap(QPixmap(resource_path("resources/cloud.png")).scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         except Exception:
             self.cloud_icon.setText("☁️")
             self.cloud_icon.setFont(QFont("Arial", 32))
@@ -48,7 +59,7 @@ class MainWindow(QMainWindow):
         self.top_label.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.top_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         try:
-            self.mersen_logo.setPixmap(QPixmap("resources/mersen.png").scaled(180, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            self.mersen_logo.setPixmap(QPixmap(resource_path("resources/mersen.png")).scaled(180, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         except Exception:
             self.mersen_logo.setText("MERSEN")
             self.mersen_logo.setFont(QFont("Arial", 24, QFont.Weight.Bold))
@@ -104,6 +115,9 @@ class MainWindow(QMainWindow):
         # Carrega o conf.json do diretório do usuário
         user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
         config_path = os.path.join(user_dir, "conf.json")
+        if not os.path.exists(config_path):
+            # fallback: tenta carregar do bundle
+            config_path = resource_path("config/conf.json")
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
 
@@ -135,7 +149,7 @@ class MainWindow(QMainWindow):
         self.ui.top_layout.addLayout(self.top_hbox)
 
         # Botão de reiniciar (inicialmente oculto)
-        from PySide6.QtWidgets import QPushButton
+        from PySide6.QtWidgets import QPushButton, QLabel
         from PySide6.QtGui import QIcon  # Adicionado para usar QIcon
         self.restart_button = QPushButton()
         self.restart_button.setFixedSize(40, 40)
@@ -151,15 +165,21 @@ class MainWindow(QMainWindow):
                 background: #b3b3b3;
             }
         """)
-        self.restart_button.setIcon(QIcon("resources/restart.png"))
+        self.restart_button.setIcon(QIcon(resource_path("resources/restart.png")))
         self.restart_button.setIconSize(QSize(32, 32))
         self.restart_button.setVisible(False)
         self.restart_button.clicked.connect(self.reiniciar_testes)
         self.main_layout.replaceWidget(self.progress_bar, self.restart_button)
         self.main_layout.addWidget(self.progress_bar)  # Mantém a barra para manipulação, mas ela ficará oculta
 
-        # Layout para barra de progresso + botão de reinício lado a lado
-        from PySide6.QtWidgets import QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy
+        # Label de status ao lado do botão reiniciar
+        self.status_label = QLabel("Teste concluído")
+        self.status_label.setStyleSheet("color: #17607a; font-size: 16px; font-family: Arial, sans-serif;")
+        self.status_label.setVisible(False)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+
+        # Layout para barra de progresso + botão de reinício + status centralizado
+        from PySide6.QtWidgets import QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy, QLabel
         self.progress_bar.setFixedHeight(24)
         self.progress_bar.setFixedWidth(0)  # width controlado pelo layout
         self.progress_bar.setStyleSheet("""
@@ -178,11 +198,16 @@ class MainWindow(QMainWindow):
         self.progress_restart_hbox.setSpacing(8)
         self.progress_restart_hbox.addWidget(self.progress_bar, stretch=1)
         self.progress_restart_hbox.addWidget(self.restart_button)
+        # Adiciona expansores para centralizar a label
+        self.progress_restart_hbox.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        self.progress_restart_hbox.addWidget(self.status_label)
+        self.progress_restart_hbox.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
         self.main_layout.removeWidget(self.progress_bar)
         self.main_layout.removeWidget(self.restart_button)
         self.main_layout.addLayout(self.progress_restart_hbox)
         self.progress_bar.setVisible(True)
         self.restart_button.setVisible(False)
+        self.status_label.setVisible(False)
 
         # Remove barra de progresso do layout
         self.progress_bar.setVisible(False)
@@ -283,6 +308,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(100)
         self.progress_bar.setVisible(True)
         self.restart_button.setVisible(True)
+        self.status_label.setVisible(True)
         # Não exibe novamente o resumo dos resultados (Download, Upload, Ping, Jitter)
 
     def on_speedtest_error(self, error_msg):
@@ -295,6 +321,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         self.button.setEnabled(True)
         self.restart_button.setVisible(True)
+        self.status_label.setVisible(True)
 
     def on_speedtest_timeout(self):
         # Só aciona o alternative_speedtest se o tempo desde a última atualização for maior que o timeout
@@ -407,6 +434,7 @@ class MainWindow(QMainWindow):
         # Limpa e restaura a interface
         self.label.clear()
         self.restart_button.setVisible(False)
+        self.status_label.setVisible(False)
         self.button.setVisible(True)
         self.button.setEnabled(True)
         self.text_box.hide()
