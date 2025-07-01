@@ -117,7 +117,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NetBR", None))
-        self.top_label.setText(QCoreApplication.translate("MainWindow", u"Nuvem", None))
+        self.top_label.setText(QCoreApplication.translate("MainWindow", u"Nuvem.Test", None))
         self.button.setText(QCoreApplication.translate("MainWindow", u"TESTAR!", None))
     # retranslateUi
 

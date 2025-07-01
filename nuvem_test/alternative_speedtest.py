@@ -1,4 +1,4 @@
-# nuvem/alternative_speedtest.py
+# nuvem_test/alternative_speedtest.py
 import os
 import json
 import sys
@@ -17,11 +17,8 @@ class AlternativeSpeedTestWindow(QMainWindow):
         self.setWindowTitle("Teste Alternativo de Velocidade")
         self.setGeometry(150, 150, 800, 600)
 
-        # Busca o conf.json primeiro no diretório do usuário, depois no bundle
-        user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
-        config_path = os.path.join(user_dir, "conf.json")
-        if not os.path.exists(config_path):
-            config_path = resource_path("config/conf.json")
+        # Busca o conf.json do bundle
+        config_path = resource_path("config/conf.json")
         with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
             url = config.get("speedtest_fallback_url", "https://openspeedtest.com/speedtest")

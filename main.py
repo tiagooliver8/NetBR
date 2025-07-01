@@ -14,9 +14,9 @@ from PySide6.QtCore import QThread, QTimer, Qt
 from PySide6.QtGui import QPixmap, QFont, QIcon
 from PySide6.QtCore import QSize
 from ui_main import Ui_MainWindow
-from nuvem.logger import log
-from nuvem.network_worker import SpeedTestWorker, NetworkWorker
-from nuvem.alternative_speedtest import AlternativeSpeedTestWindow
+from nuvem_test.logger import log
+from nuvem_test.network_worker import SpeedTestWorker, NetworkWorker
+from nuvem_test.alternative_speedtest import AlternativeSpeedTestWindow
 
 def resource_path(relative_path):
     base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
@@ -25,9 +25,10 @@ def resource_path(relative_path):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowIcon(QIcon(resource_path("resources/cloud.png")))
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowTitle("Nuvem - Mersen do Brasil")
+        self.setWindowTitle("Nuvem.Test - Mersen do Brasil")
         self.setFixedSize(400, 700)
         self.setStyleSheet("""
             QMainWindow {
@@ -35,6 +36,11 @@ class MainWindow(QMainWindow):
                 border-radius: 32px;
             }
         """)
+        # Centraliza a janela na tela
+        qr = self.frameGeometry()
+        cp = QApplication.primaryScreen().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
 
         # Acesso direto aos widgets
         self.button = self.ui.button
@@ -56,6 +62,8 @@ class MainWindow(QMainWindow):
             self.cloud_icon.setText("☁️")
             self.cloud_icon.setFont(QFont("Arial", 32))
         self.cloud_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Aplica cor PANTONE 1655C (hex #FF3C00) em 'Nuvem.' e mantém 'Test' branco
+        self.top_label.setText('<span style="color:#FF3C00;">Nuvem.</span><span style="color:#FFFFFF;">Test</span>')
         self.top_label.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.top_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         try:
@@ -113,11 +121,7 @@ class MainWindow(QMainWindow):
         self._scroll_to_bottom = scroll_to_bottom  # Referência para uso posterior
 
         # Carrega o conf.json do diretório do usuário
-        user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
-        config_path = os.path.join(user_dir, "conf.json")
-        if not os.path.exists(config_path):
-            # fallback: tenta carregar do bundle
-            config_path = resource_path("config/conf.json")
+        config_path = resource_path("config/conf.json")
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
 
@@ -150,7 +154,6 @@ class MainWindow(QMainWindow):
 
         # Botão de reiniciar (inicialmente oculto)
         from PySide6.QtWidgets import QPushButton, QLabel
-        from PySide6.QtGui import QIcon  # Adicionado para usar QIcon
         self.restart_button = QPushButton()
         self.restart_button.setFixedSize(40, 40)
         self.restart_button.setToolTip("Reiniciar teste")
@@ -299,7 +302,7 @@ class MainWindow(QMainWindow):
 
     def on_speedtest_finished(self, result):
         # Se o fallback já foi aberto, ignore o resultado do speedtest
-        if hasattr(self, "alt_window") and self.alt_window.isVisible():
+        if hasattr(self, "fallback_ativo") and self.fallback_ativo:
             log("[INFO] Resultado do speedtest ignorado pois o fallback já foi aberto.")
             return
         self.speedtest_timeout_timer.stop()
@@ -341,19 +344,15 @@ class MainWindow(QMainWindow):
             self.speedtest_timeout_timer.start(restante * 1000)
 
     def abrir_speedtest_alternativo(self):
+        # Marca que o fallback foi acionado
+        self.fallback_ativo = True
         # Cancela o teste de velocidade se estiver rodando
         if hasattr(self, "speedtest_worker"):
             try:
                 self.speedtest_worker.cancel()
             except Exception:
                 pass
-        if hasattr(self, "speedtest_thread") and self.speedtest_thread is not None:
-            try:
-                if self.speedtest_thread.isRunning():
-                    self.speedtest_thread.quit()
-                    self.speedtest_thread.wait(2000)
-            except RuntimeError:
-                pass
+        # Não espera a thread do speedtest terminar, apenas ignora o resultado
         # Cancela o network worker se estiver rodando
         if hasattr(self, "network_worker"):
             try:
@@ -367,6 +366,7 @@ class MainWindow(QMainWindow):
                     self.network_thread.wait(2000)
             except RuntimeError:
                 pass
+        # Abre a janela alternativa
         self.alt_window = AlternativeSpeedTestWindow()
         self.alt_window.show()
         self.label.setText(self.label.text() + "\nTestes cancelados/interrompidos.")
@@ -401,37 +401,19 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def reiniciar_testes(self):
-        # Cancela todos os workers e threads existentes
-        if hasattr(self, "speedtest_worker"):
+        # Fecha a janela alternativa se estiver aberta (mas não mexe em threads do speedtest)
+        if hasattr(self, "alt_window"):
             try:
-                self.speedtest_worker.cancel()
-                delattr(self, "speedtest_worker")
+                if self.alt_window.isVisible():
+                    self.alt_window.close()
+                delattr(self, "alt_window")
             except Exception:
                 pass
-        if hasattr(self, "speedtest_thread") and self.speedtest_thread is not None:
-            try:
-                if self.speedtest_thread.isRunning():
-                    self.speedtest_thread.quit()
-                    self.speedtest_thread.wait(2000)
-                delattr(self, "speedtest_thread")
-            except RuntimeError:
-                pass
-        if hasattr(self, "network_worker"):
-            try:
-                self.network_worker.cancel()
-                delattr(self, "network_worker")
-            except Exception:
-                pass
-        if hasattr(self, "network_thread") and self.network_thread is not None:
-            try:
-                if self.network_thread.isRunning():
-                    self.network_thread.quit()
-                    self.network_thread.wait(2000)
-                delattr(self, "network_thread")
-            except RuntimeError:
-                pass
-
-        # Limpa e restaura a interface
+        # Limpa flag de fallback
+        if hasattr(self, "fallback_ativo"):
+            delattr(self, "fallback_ativo")
+        # NÃO cancela nem espera threads de speedtest/network aqui!
+        # Apenas limpa e restaura a interface
         self.label.clear()
         self.restart_button.setVisible(False)
         self.status_label.setVisible(False)
@@ -441,7 +423,6 @@ class MainWindow(QMainWindow):
         self.label.hide()
         self.progress_bar.setVisible(False)
         self.progress_bar.setValue(0)
-
         # Remove spacers de status se existirem
         if hasattr(self, 'spacer_top_status'):
             self.main_layout.removeItem(self.spacer_top_status)
@@ -449,46 +430,13 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'spacer_bottom_status'):
             self.main_layout.removeItem(self.spacer_bottom_status)
             delattr(self, 'spacer_bottom_status')
-
         # Restaura os spacers originais
         self.main_layout.insertItem(1, self.spacer_top)
         self.main_layout.insertItem(3, self.spacer_bottom)
-
         # Garante que o botão está no layout correto
         self.main_layout.insertWidget(2, self.button)
 
 if __name__ == "__main__":
-    # Verifica/cria o diretório %userprofile%/.nuvem
-    user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
-    try:
-        if not os.path.exists(user_dir):
-            os.makedirs(user_dir, exist_ok=True)
-    except Exception as e:
-        print(f"[ERRO] Não foi possível criar o diretório {user_dir}: {e}")
-        sys.exit(1)
-
-    # Cria o diretório logs dentro de .nuvem
-    logs_dir = os.path.join(user_dir, "logs")
-    try:
-        if not os.path.exists(logs_dir):
-            os.makedirs(logs_dir, exist_ok=True)
-    except Exception as e:
-        print(f"[ERRO] Não foi possível criar o diretório de logs {logs_dir}: {e}")
-        sys.exit(1)
-
-    # Cria conf.json em .nuvem se não existir
-    conf_src = os.path.join(os.path.dirname(__file__), "config", "conf.json")
-    conf_dst = os.path.join(user_dir, "conf.json")
-    if not os.path.exists(conf_dst):
-        try:
-            with open(conf_src, "r", encoding="utf-8") as fsrc:
-                conf_content = fsrc.read()
-            with open(conf_dst, "w", encoding="utf-8") as fdst:
-                fdst.write(conf_content)
-        except Exception as e:
-            print(f"[ERRO] Não foi possível criar o arquivo de configuração {conf_dst}: {e}")
-            sys.exit(1)
-
     print("[DEBUG] Iniciando NetBR...")
     app = QApplication()
     window = MainWindow()
