@@ -1,7 +1,6 @@
+# Nuvem.Test
 
-# NetBR
-
-**NetBR** é um aplicativo em Python com interface gráfica (PySide6) para diagnosticar a conectividade de estações de trabalho com servidores da nuvem TOTVS, testando:
+**Nuvem.Test** é um aplicativo em Python com interface gráfica (PySide6) para diagnosticar a conectividade de estações de trabalho com servidores da nuvem TOTVS, testando:
 
 - Conexão com servidores e portas específicas
 - Velocidade de download e upload
@@ -82,7 +81,7 @@ Exemplo:
 NetBR/
 ├── config/                # Arquivo conf.json
 ├── logs/                  # Arquivos de log
-├── nuvem/                 # Módulos do app
+├── nuvem_test/                 # Módulos do app
 │   ├── speedtest.py
 │   ├── network.py
 │   ├── logger.py

@@ -14,9 +14,9 @@ from PySide6.QtCore import QThread, QTimer, Qt
 from PySide6.QtGui import QPixmap, QFont, QIcon
 from PySide6.QtCore import QSize
 from ui_main import Ui_MainWindow
-from nuvem.logger import log
-from nuvem.network_worker import SpeedTestWorker, NetworkWorker
-from nuvem.alternative_speedtest import AlternativeSpeedTestWindow
+from nuvem_test.logger import log
+from nuvem_test.network_worker import SpeedTestWorker, NetworkWorker
+from nuvem_test.alternative_speedtest import AlternativeSpeedTestWindow
 
 def resource_path(relative_path):
     base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
@@ -25,9 +25,10 @@ def resource_path(relative_path):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowIcon(QIcon(resource_path("resources/cloud.png")))
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowTitle("Nuvem - Mersen do Brasil")
+        self.setWindowTitle("Nuvem.Test - Mersen do Brasil")
         self.setFixedSize(400, 700)
         self.setStyleSheet("""
             QMainWindow {
@@ -35,6 +36,11 @@ class MainWindow(QMainWindow):
                 border-radius: 32px;
             }
         """)
+        # Centraliza a janela na tela
+        qr = self.frameGeometry()
+        cp = QApplication.primaryScreen().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
 
         # Acesso direto aos widgets
         self.button = self.ui.button
@@ -113,7 +119,7 @@ class MainWindow(QMainWindow):
         self._scroll_to_bottom = scroll_to_bottom  # Referência para uso posterior
 
         # Carrega o conf.json do diretório do usuário
-        user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
+        user_dir = os.path.expandvars(r"%userprofile%/.nuvem_test")
         config_path = os.path.join(user_dir, "conf.json")
         if not os.path.exists(config_path):
             # fallback: tenta carregar do bundle
@@ -150,7 +156,6 @@ class MainWindow(QMainWindow):
 
         # Botão de reiniciar (inicialmente oculto)
         from PySide6.QtWidgets import QPushButton, QLabel
-        from PySide6.QtGui import QIcon  # Adicionado para usar QIcon
         self.restart_button = QPushButton()
         self.restart_button.setFixedSize(40, 40)
         self.restart_button.setToolTip("Reiniciar teste")
@@ -434,37 +439,6 @@ class MainWindow(QMainWindow):
         self.main_layout.insertWidget(2, self.button)
 
 if __name__ == "__main__":
-    # Verifica/cria o diretório %userprofile%/.nuvem
-    user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
-    try:
-        if not os.path.exists(user_dir):
-            os.makedirs(user_dir, exist_ok=True)
-    except Exception as e:
-        print(f"[ERRO] Não foi possível criar o diretório {user_dir}: {e}")
-        sys.exit(1)
-
-    # Cria o diretório logs dentro de .nuvem
-    logs_dir = os.path.join(user_dir, "logs")
-    try:
-        if not os.path.exists(logs_dir):
-            os.makedirs(logs_dir, exist_ok=True)
-    except Exception as e:
-        print(f"[ERRO] Não foi possível criar o diretório de logs {logs_dir}: {e}")
-        sys.exit(1)
-
-    # Cria conf.json em .nuvem se não existir
-    conf_src = os.path.join(os.path.dirname(__file__), "config", "conf.json")
-    conf_dst = os.path.join(user_dir, "conf.json")
-    if not os.path.exists(conf_dst):
-        try:
-            with open(conf_src, "r", encoding="utf-8") as fsrc:
-                conf_content = fsrc.read()
-            with open(conf_dst, "w", encoding="utf-8") as fdst:
-                fdst.write(conf_content)
-        except Exception as e:
-            print(f"[ERRO] Não foi possível criar o arquivo de configuração {conf_dst}: {e}")
-            sys.exit(1)
-
     print("[DEBUG] Iniciando NetBR...")
     app = QApplication()
     window = MainWindow()

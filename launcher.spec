@@ -1,45 +1,34 @@
 # -*- mode: python ; coding: utf-8 -*-
-import sys
-import os
 
-block_cipher = None
 
 a = Analysis(
-    ['main.py'],
+    ['launcher.py'],
     pathex=[],
     binaries=[],
     datas=[
-        ('resources/*', 'resources'),
+        ('resources/cloud.ico', 'resources'),
+        ('resources/splash.png', 'resources'),
         ('config/conf.json', 'config'),
-        ('resources/cloud.ico', '.'),
-    ],
-    hiddenimports=[
-        'PySide6.QtCore',
-        'PySide6.QtGui',
-        'PySide6.QtWidgets',
-        'PySide6.QtWebEngineWidgets',
-        'speedtest',
-        'ping3',
-    ],
+    ],  # <--- vírgula adicionada aqui
+    hiddenimports=[],
     hookspath=[],
+    hooksconfig={},
     runtime_hooks=[],
     excludes=[],
+    noarchive=False,
+    optimize=0,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
 )
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
-    name='Nuvem.Test',
+    name='Launcher',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -47,5 +36,10 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
     icon='resources/cloud.ico',
 )
