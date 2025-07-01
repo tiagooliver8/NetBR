@@ -62,6 +62,8 @@ class MainWindow(QMainWindow):
             self.cloud_icon.setText("☁️")
             self.cloud_icon.setFont(QFont("Arial", 32))
         self.cloud_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Aplica cor PANTONE 1655C (hex #FF3C00) em 'Nuvem.' e mantém 'Test' branco
+        self.top_label.setText('<span style="color:#FF3C00;">Nuvem.</span><span style="color:#FFFFFF;">Test</span>')
         self.top_label.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.top_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         try:
@@ -119,11 +121,7 @@ class MainWindow(QMainWindow):
         self._scroll_to_bottom = scroll_to_bottom  # Referência para uso posterior
 
         # Carrega o conf.json do diretório do usuário
-        user_dir = os.path.expandvars(r"%userprofile%/.nuvem_test")
-        config_path = os.path.join(user_dir, "conf.json")
-        if not os.path.exists(config_path):
-            # fallback: tenta carregar do bundle
-            config_path = resource_path("config/conf.json")
+        config_path = resource_path("config/conf.json")
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
 

@@ -1,16 +1,19 @@
 # nuvem_test/config_loader.py
 import json
 import os
+import sys
 
 
 def load_config():
-    # Carrega o conf.json do diretório do usuário
-    user_dir = os.path.expandvars(r"%userprofile%/.nuvem_test")
-    config_path = os.path.join(user_dir, "conf.json")
-
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Arquivo de configuração não encontrado: {config_path}")
-
+    # Detecta se está rodando como executável PyInstaller
+    if getattr(sys, 'frozen', False):
+        # Executável: carrega de %userprofile%/.nuvem/conf.json
+        user_dir = os.path.expandvars(r"%userprofile%/.nuvem")
+        config_path = os.path.join(user_dir, "conf.json")
+    else:
+        # Desenvolvimento: carrega de ./config/conf.json
+        config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'conf.json')
+        config_path = os.path.abspath(config_path)
     with open(config_path, "r", encoding="utf-8") as f:
         try:
             data = json.load(f)

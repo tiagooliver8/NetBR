@@ -1,11 +1,19 @@
+import sys
 import os
 from datetime import datetime
 
 # nuvem_test/logger.py
 
-# Diretório de logs em %userprofile%/.nuvem_test/logs
-USER_DIR = os.path.expandvars(r"%userprofile%/.nuvem_test")
-LOG_DIR = os.path.join(USER_DIR, "logs")
+# Detecta se está rodando como executável PyInstaller
+if getattr(sys, 'frozen', False):
+    # Executável: salva em %userprofile%/.nuvem/logs
+    USER_DIR = os.path.expandvars(r"%userprofile%/.nuvem")
+    LOG_DIR = os.path.join(USER_DIR, "logs")
+else:
+    # Desenvolvimento: salva em ./logs
+    LOG_DIR = os.path.join(os.path.dirname(__file__), '..', 'logs')
+    LOG_DIR = os.path.abspath(LOG_DIR)
+
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Nome do arquivo: NuvemTest_[data e hora do teste].log
