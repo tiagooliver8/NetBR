@@ -2,9 +2,20 @@ import sys
 import os
 import shutil
 import subprocess
+import datetime
 from PySide6.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QMessageBox, QStackedLayout
 from PySide6.QtGui import QPixmap, QFont, QIcon
 from PySide6.QtCore import Qt, QTimer
+import ctypes
+import ctypes.wintypes
+user32 = ctypes.windll.user32
+EnumWindows = user32.EnumWindows
+EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+IsWindowVisible = user32.IsWindowVisible
+SetForegroundWindow = user32.SetForegroundWindow
+GetWindowTextW = user32.GetWindowTextW
+GetWindowTextLengthW = user32.GetWindowTextLengthW
+
 
 # Utilitário para obter caminho de recursos (compatível com PyInstaller)
 def resource_path(relative_path):
@@ -69,18 +80,8 @@ def find_executable():
         return cwd_app, [user_app, cwd_app]
     return None, [user_app, cwd_app]
 
-# Função para detectar e trazer a janela do Nuvem.Test para frente por título
-import ctypes
-import ctypes.wintypes
-user32 = ctypes.windll.user32
-EnumWindows = user32.EnumWindows
-EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
-IsWindowVisible = user32.IsWindowVisible
-SetForegroundWindow = user32.SetForegroundWindow
-GetWindowTextW = user32.GetWindowTextW
-GetWindowTextLengthW = user32.GetWindowTextLengthW
 
-# Busca janela por título (tolerante a variações)
+# Função para detectar e trazer a janela do Nuvem.Test para frente por título
 def bring_nuvem_to_front_by_title(titles):
     hwnd_found = None
     def callback(hwnd, lParam):
@@ -101,8 +102,26 @@ def bring_nuvem_to_front_by_title(titles):
     EnumWindows(EnumWindowsProc(callback), 0)
     if hwnd_found:
         SetForegroundWindow(hwnd_found)
-        return True
-    return False
+        return hwnd_found
+    return None
+
+# Verifica se a janela está visível, não minimizada e com área suficiente
+def is_window_ready(hwnd):
+    if not hwnd:
+        return False
+    if not IsWindowVisible(hwnd):
+        return False
+    is_iconic = user32.IsIconic(hwnd)
+    if is_iconic:
+        return False
+    rect = ctypes.wintypes.RECT()
+    if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+        return False
+    width = rect.right - rect.left
+    height = rect.bottom - rect.top
+    if width < 100 or height < 100:
+        return False
+    return True
 
 def main():
     app = QApplication(sys.argv)
@@ -117,25 +136,8 @@ def main():
                f"- {checked_paths[0]}\n- {checked_paths[1]}")
         QMessageBox.critical(None, "Erro", msg)
         sys.exit(1)
-    proc = subprocess.Popen([exe_path], shell=False)
-    # Títulos possíveis (pode adicionar variações futuras)
-    possible_titles = [
-        "Nuvem.Test - Mersen do Brasil",
-        "Nuvem.Test",
-        "Nuvem Test",
-    ]
-    def check_window():
-        if proc.poll() is not None:
-            splash.close()
-            QMessageBox.critical(None, "Erro", "Nuvem.Test.exe foi fechado antes de exibir a janela.")
-            sys.exit(2)
-        if bring_nuvem_to_front_by_title(possible_titles):
-            splash.close()
-            QTimer.singleShot(200, lambda: bring_nuvem_to_front_by_title(possible_titles))
-            sys.exit(0)
-    timer = QTimer()
-    timer.timeout.connect(check_window)
-    timer.start(400)
+    subprocess.Popen([exe_path], shell=False)
+    QTimer.singleShot(20000, app.quit)  # Fecha após 15 segundos
     sys.exit(app.exec())
 
 if __name__ == "__main__":
